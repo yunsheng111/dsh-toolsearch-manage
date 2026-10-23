@@ -76,6 +76,21 @@ pnpm add "github:yunsheng111/dsh-toolsearch-manage#<new-commit>"
 
 然后重启。
 
+### 一键升级脚本（Windows）
+
+`scripts/update-to-tag.cmd` 把上面的「锁定 tag 安装」和随后的校验打包成一步，**双击即可**：
+
+```
+scripts\update-to-tag.cmd
+scripts\update-to-tag.cmd -Tag v0.1.0 -Profile desktop
+```
+
+它会先确认 DSH 已完全退出（否则 `pnpm` 会因文件被占用报 `[EPERM]`），备份 `package.json` / `pnpm-lock.yaml` / `cordis.patch.yml`，安装指定 tag，再校验四项：依赖声明、锁定 commit、许可证署名行、`NOTICE`。全过程写入 `~/.dsh/logs/toolsearch-manage-update-<时间戳>.log`。
+
+> `-Profile` 省略时自动检测：`DSH_PROFILE` → 唯一的 profile 目录；有多个时必须指定。
+> 直接双击 `.ps1` 不行（Windows 默认用记事本打开，且执行策略会拦截），所以要经 `.cmd` 启动。
+> **不要从 DSH 的终端面板里运行**，那时 DSH 必然在运行，脚本会拒绝执行并说明原因。
+
 ### 安装后确认
 
 装好并重启后应看到：
