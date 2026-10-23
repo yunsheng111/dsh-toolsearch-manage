@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Tool Search and Management">
+  <title>Tool Search and Management</title>
+  <!-- Original artwork: a magnifier over a stack of tiered tool rows. The three
+       row colours are the plugin's own three tiers (eager / on-demand /
+       disabled), which is what the plugin is about. -->
+  <rect x="4" y="4" width="56" height="56" rx="13" fill="#16233a"/>
+  <g stroke-linecap="round">
+    <line x1="15" y1="20" x2="37" y2="20" stroke="#3ddc97" stroke-width="4"/>
+    <line x1="15" y1="30" x2="33" y2="30" stroke="#4c9aff" stroke-width="4"/>
+    <line x1="15" y1="40" x2="30" y2="40" stroke="#5b6b86" stroke-width="4"/>
+  </g>
+  <circle cx="41" cy="40" r="10" fill="none" stroke="#4c9aff" stroke-width="4"/>
+  <line x1="48" y1="47" x2="56" y2="55" stroke="#4c9aff" stroke-width="5" stroke-linecap="round"/>
+</svg>

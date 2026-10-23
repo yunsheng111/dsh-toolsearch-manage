@@ -1,0 +1,65 @@
+{
+  "name": "dsh-toolsearch-manage",
+  "version": "0.1.0",
+  "description": "工具检索与管理 (ToolSearch) — one plugin for DSH tool visibility: MCP on-demand loading with per-session connections, resident/on-demand/disabled tiers for built-in and MCP tools, a prompt-resident catalog, and an MCP market with cross-client import.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "client/client.js",
+    "locale/*.json",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "LICENSE-MIT-TOOLBOX-UI",
+    "LICENSE-APACHE-CAPABILITY-MENU"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "toolsearch",
+    "mcp",
+    "capability",
+    "on-demand",
+    "cordis"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "react": "^18.2.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "cross-spawn": "^7.0.6",
+    "smol-toml": "^1.8.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
+    "react-dom": "^18.3.1"
+  }
+}

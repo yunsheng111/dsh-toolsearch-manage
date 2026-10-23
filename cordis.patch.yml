@@ -1,0 +1,8 @@
+# dsh bundle patch: auto-mounts this plugin when installed via `dsh plugin add`.
+#
+# The profile is detected from the running dsh process (its profile directory)
+# when not set in config, so no manual row is required. Users may override this
+# row in their profile's cordis.patch.yml with the same id to set config.
+- insert:
+    - id: toolsearch-manage
+      name: 'dsh-toolsearch-manage'
