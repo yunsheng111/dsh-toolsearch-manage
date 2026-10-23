@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+# Windows launchers, if ever added, must keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets are not text.
+*.png binary
+*.jpg binary
+*.webp binary
+*.tgz binary

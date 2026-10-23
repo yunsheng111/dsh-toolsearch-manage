@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build and scratch output
+dist/
+build/
+.tmpx/
+.skill-tmp/
+.remote-probe/
+*.log
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Test and coverage output
+coverage/
+.nyc_output/
