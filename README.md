@@ -2,6 +2,9 @@
 
 **工具检索与管理 (ToolSearch & Management)** —— DSH 宿主插件，是**工具可见性的唯一所有者**。
 
+> **当前版本** `0.1.0` · 安装锁定 commit `02a4eb7`
+> 未发布到 npm，从 GitHub 安装；命令见 [安装](#安装)。
+
 它把原本散在三个插件里、且互相抢写同一份 `cordis.patch.yml` 的能力收成一个包：
 
 - **档位**：MCP 工具、内置工具（`bash` / `read` / `web_fetch` …）、本插件自己的管理工具，统一分 `eager` / `on-demand` / `disabled` 三档。
@@ -40,14 +43,62 @@ on-demand 工具 ──► tool_search ──► schema + 立即变可调用
 
 ## 安装
 
+本包**未发布到 npm**，从 GitHub 安装。
+
+### 给别人 / 新机器
+
 ```bash
-# 本机开发（改源码后重启 DSH 即生效）
+cd ~/.dsh/profiles/<your-profile>          # 例如 desktop 或 web
+pnpm add "github:yunsheng111/dsh-toolsearch-manage#<commit>"
+```
+
+把 `<commit>` 换成下面「当前版本」里的短哈希。**建议锁 commit 而不是跟 `main`**：`main` 是移动目标，锁住才能复现当时验证过的代码。`pnpm-lock.yaml` 会记下解析到的 commit，同一份 lockfile 在任何机器上装出同一份代码。
+
+已锁定可直接用：
+
+```bash
+pnpm add "github:yunsheng111/dsh-toolsearch-manage#02a4eb7"
+```
+
+安装后**必须重启 DSH**（Desktop 要真正退出进程，关窗口可能只是隐藏）。插件是宿主侧代码，重启才会加载新副本。
+
+### 本机开发
+
+```bash
 cd ~/.dsh/profiles/desktop && pnpm add "link:D:/dsh-plugin"
 ```
 
-正式形态用 `plugin_manager` 的 `install_bundle`，`target` 指向本目录的绝对路径。
+`link:` 让源码改动在重启后立刻生效，适合迭代。**但 `link:` 不能用来分发**，别人拿不到这个路径。
 
-装完在 **设置 → 工具检索** 里看到五个页签：能力 / 市场 / 导入 / 技能 / 设置。
+### 通过插件管理器
+
+`plugin_manager` 的 `install_bundle`，`target` 传 `github:yunsheng111/dsh-toolsearch-manage` 或本地目录绝对路径。这是 Desktop 面板「插件」页背后的同一个入口。
+
+### 更新
+
+```bash
+pnpm add "github:yunsheng111/dsh-toolsearch-manage#<new-commit>"
+```
+
+然后重启。
+
+### 安装后确认
+
+装好并重启后应看到：
+
+- 左侧栏出现放大镜图标（可在「设置 → 工具检索 → 显示位置」关掉）
+- 设置里有「工具检索」页，五个页签：能力 / 市场 / 导入 / 技能 / 设置
+- 工具表里出现 `tool_search`、`mcp_register`、`mcp_load`、`mcp_call`
+
+### 卸载
+
+```bash
+cd ~/.dsh/profiles/<your-profile>
+pnpm remove dsh-toolsearch-manage
+```
+
+卸载前建议先跑 `/mcp prepare-uninstall`，把托管块里的 MCP 行交还给原生 `@deepseek-ai/dsh-mcp-client`，否则那些服务器会跟着插件一起消失。
+
 
 ## 配置（profile 的 `cordis.patch.yml`）
 
