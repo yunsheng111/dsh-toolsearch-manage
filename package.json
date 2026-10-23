@@ -2,6 +2,28 @@
   "name": "dsh-toolsearch-manage",
   "version": "0.1.0",
   "description": "工具检索与管理 (ToolSearch) — one plugin for DSH tool visibility: MCP on-demand loading with per-session connections, resident/on-demand/disabled tiers for built-in and MCP tools, a prompt-resident catalog, and an MCP market with cross-client import.",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "toolsearch",
+    "mcp",
+    "capability",
+    "on-demand",
+    "cordis"
+  ],
+  "homepage": "https://github.com/yunsheng111/dsh-toolsearch-manage#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yunsheng111/dsh-toolsearch-manage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yunsheng111/dsh-toolsearch-manage/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -36,17 +58,6 @@
     "LICENSE-MIT-TOOLBOX-UI",
     "LICENSE-APACHE-CAPABILITY-MENU",
     "NOTICE"
-  ],
-  "license": "MIT",
-  "keywords": [
-    "dsh",
-    "dsh-plugin",
-    "deepseek-harness",
-    "toolsearch",
-    "mcp",
-    "capability",
-    "on-demand",
-    "cordis"
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
