@@ -1,0 +1,47 @@
+dsh-toolsearch-manage
+=====================
+
+This package contains code derived from three upstream projects. The full
+licence text of each is included in this directory.
+
+1. dsh-skill-mcp-manager 1.2.2 — MIT
+   Copyright (c) 2026 alone-tree
+   Licence: LICENSE
+
+   Ported: MCP connection and transport, the stdio client transport, the child
+   process environment, the capability registry store, the skill provider and the
+   session audit, plus the three management tools (register / load / call).
+
+   Modified: extended with a `kind` field and a v1→v2 registry migration; the
+   profile detection was rewritten to accept a positional profile directory; rows
+   for the model-facing tool name are now rendered from real names; `defer` is no
+   longer honoured as a patch field.
+
+2. dsh-toolbox-ui 1.8.2 — MIT
+   Copyright (c) 2026 dsh-toolbox-ui contributors
+   Licence: LICENSE-MIT-TOOLBOX-UI
+
+   Ported: the tier-rule grammar and classification priority, the `interpolate:
+   false` requirement and the `tools:sdk` trimming predicate, the search index and
+   BM25 ranking, the discovery-set folding, the MCP market catalog data, the
+   cross-client import sources, and the two small primitives in
+   lib/env-expression.js and lib/own-property.js.
+
+   Modified: the search index was re-parameterised; the market catalog is data
+   only and was re-shaped into this plugin's entry model; the trimming predicate
+   gained a premise self-check.
+
+3. @daweifu/capability-menu 0.1.6 — Apache-2.0
+   Copyright 2026 Dawei Fu
+   Licence: LICENSE-APACHE-CAPABILITY-MENU
+
+   Ported: the assembly-projection and guard approach for tool masking, and the
+   precedence rules that resolve a tool to a single tier.
+
+   Modified: re-implemented in plain JavaScript without the build step; the
+   masking is a deny-list rather than an allow-list; the guard text distinguishes
+   the on-demand and disabled tiers.
+
+   Apache License 2.0, Section 4(b): each file listed above carries a header
+   noting that it was modified. Section 4(d): this NOTICE is included in the
+   published package; see `files` in package.json.
