@@ -107,10 +107,23 @@ cd ~/.dsh/profiles/desktop && pnpm add "link:D:/dsh-plugin"
 
 ## 许可
 
-MIT（见 `LICENSE`）。搬自上游的部分：
+本包以 MIT 发布（见 `LICENSE`）。
 
-- 基座 `dsh-skill-mcp-manager@1.2.2`（MIT）
-- `dsh-toolbox-ui@1.8.2`（MIT，见 `LICENSE-MIT-TOOLBOX-UI`）
-- `@daweifu/capability-menu@0.1.6`（Apache-2.0，见 `LICENSE-APACHE-CAPABILITY-MENU`）
+它包含三个上游项目的衍生代码。三者的许可证**都允许**修改、再分发与商用，条件是保留署名——所以本包可以按 MIT 发布，但下列义务必须履行：
 
-每个搬来的函数上方都有来源说明。
+| 上游 | 许可证 | 版权人 | 许可证全文 |
+|---|---|---|---|
+| `dsh-skill-mcp-manager@1.2.2` | MIT | alone-tree | `LICENSE` |
+| `dsh-toolbox-ui@1.8.2` | MIT | dsh-toolbox-ui contributors | `LICENSE-MIT-TOOLBOX-UI` |
+| `@daweifu/capability-menu@0.1.6` | Apache-2.0 | Dawei Fu | `LICENSE-APACHE-CAPABILITY-MENU` |
+
+**`NOTICE` 列出了每个上游被搬运的模块与被修改的内容**——那是这套许可证义务的正式载体，改代码前请先读它。两个 MIT 上游要求版权声明随「软件的实质部分」一起传播；Apache-2.0 第 4(b) 条要求标记被修改的文件、第 4(d) 条要求传播 NOTICE。
+
+代码层面的落实：**19 个衍生文件的头部都有来源标注**（`// Ported from … (LICENSE). Modified for this plugin; see NOTICE.`）。这条注释是许可证要求，不是普通注释——搬运或大改这些文件时不要删掉它，否则下一次同步上游就分不清哪些是原样代码、哪些是本仓的改动，署名义务也会断掉。
+
+### 你需要知道的边界
+
+- **MIT 与 Apache-2.0 都是宽松许可**，不要求你开源自己的修改，也不要求同许可证。你可以在本包之上闭源分发或商用。
+- **Apache-2.0 部分不是 copyleft**（不是 GPL）。它只要求署名、保留许可证与 NOTICE、标记修改，不要求公开源码。
+- 上述是依据许可证原文的核对，**不构成法律意见**。商用或大规模分发前请自行确认。
+

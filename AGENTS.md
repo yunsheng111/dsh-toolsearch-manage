@@ -52,7 +52,11 @@ test/*.test.mjs       单元 + 生命周期测试（node --test）
 - **RPC = 同源 HTTP 路由**：Host 用 `ctx.webServer.register({kind:"exact", path, handler})`，Client 用 `fetch("/toolsearch-manage/...")`。
   - `webServer` 是**惰性服务**：必须 `ctx.inject(["webServer"], …)` 等待，同步 `ctx.get("webServer")` 会拿到 `undefined` → 路由不注册 → 浏览器拿到 SPA fallback 而非 JSON。
   - `webServer.register` 对重复 `(kind, path)` 抛错：**GET 和 POST 不能各注册一条同 path 路由**，合并成一条、handler 内按 `request.method` 分发（见 `/settings`）。
-- 浏览器发起的路由（带 `Origin`）必须同源且主机名是 localhost / 本机名 / IP 字面量；局域网主机名走设置里的允许名单。不带 `Origin` 的 POST 仍只校验同源。
+- 路由的准入规则（`browserGuard`）：**`Host` 每次请求都校验**（localhost / 本机名 / IP 字面量恒允许，局域网主机名走设置里的允许名单）；**带 `Origin` 时必须同源**；**不带 `Origin` 的写入放行**。
+  - 最后这条是修过的缺陷：原先「POST 无 `Origin` 就拒绝」把真实 GUI 挡在门外——桌面端自己的 POST 不带 `Origin`，于是每次设置写入都失败，报错却提示「刷新页面」。
+  - 现在这样判断安全：跨站 `fetch`/表单 POST 按规范**必须**带 `Origin`，所以「无 `Origin`」不是 CSRF 场景；而 `Host` 是浏览器无法伪造成任意值的头，仍是 rebinding 的主防线。
+  - 拒绝分三种原因（`origin-mismatch` / `host-not-allowed` / `write-required`），各给可操作文案，且**不回传**端口与允许名单内容。
+
 
 ### 数据
 
@@ -149,4 +153,18 @@ cd ~/.dsh/profiles/desktop && pnpm add "link:D:/dsh-plugin"
 - 基座（MCP 连接、三件套、patch 托管块、stdio 传输、MCP 结果投影、skill provider、session-audit）：`dsh-skill-mcp-manager@1.2.2`，MIT，见 `LICENSE`。
 - 档位规则解析与 classify 优先级（`lib/policy.js` 的 `parseRule` / `compileGlob` / `classify`）、`interpolate: false` 与 `tools:sdk` 裁剪判据（`lib/ptc.js` / `lib/catalog.js`）、检索与发现集（`lib/search.js` / `lib/discovery.js`）、市场目录与跨客户端导入（`lib/mcp-catalog.js` / `lib/mcp-import*.js`）：`dsh-toolbox-ui@1.8.2`（MIT，见 `LICENSE-MIT-TOOLBOX-UI`）与 `@daweifu/capability-menu@0.1.6`（Apache-2.0，见 `LICENSE-APACHE-CAPABILITY-MENU`）。
 
-每个搬来的函数上方都有来源说明；改动时**保留那段注释**，否则下一次同步上游会分不清哪些是原样搬运、哪些是本仓的改动。
+**19 个衍生文件的头部都有一行来源标注**：
+
+```js
+// Ported from dsh-toolbox-ui (MIT). Modified for this plugin; see NOTICE.
+```
+
+这是**许可证要求的署名**，不是普通注释：
+
+- 两个 MIT 上游要求版权声明随「软件的实质部分」传播；
+- Apache-2.0 第 4(b) 条要求标记被修改的文件。
+
+改这些文件时**保留那行标注**。删掉它的后果有两层：许可证义务断掉；以及下一次同步上游时分不清哪些是原样搬运、哪些是本仓的改动。
+
+`NOTICE` 是这套义务的正式载体，逐项写明了每个上游被搬了哪些模块、被改了什么。**新增衍生代码或大幅改写既有衍生文件时，同步更新 `NOTICE` 的 Modified 部分。** `NOTICE` 已列入 `package.json` 的 `files`，所以它会随 npm 包一起发布，而不只是留在仓库里。
+
