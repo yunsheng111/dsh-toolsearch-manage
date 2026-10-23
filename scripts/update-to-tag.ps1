@@ -75,16 +75,38 @@ if (-not $Profile) {
   if ($env:DSH_PROFILE) {
     $Profile = $env:DSH_PROFILE
   } else {
-    $candidates = Get-ChildItem $profilesRoot -Directory -ErrorAction SilentlyContinue |
-      Where-Object { Test-Path (Join-Path $_.FullName 'package.json') }
-    if ($candidates.Count -eq 1) {
-      $Profile = $candidates[0].Name
-    } elseif ($candidates.Count -eq 0) {
-      Write-Bad "在 $profilesRoot 下找不到任何带 package.json 的 profile"
+    # "The only profile with a package.json" is the wrong test: a machine that has
+    # ever run both web and desktop has two, and neither is more likely than the
+    # other. What actually identifies the target is `dependencies` naming THIS
+    # package — a profile that does not depend on it has nothing to update.
+    $all = @(Get-ChildItem $profilesRoot -Directory -ErrorAction SilentlyContinue | Where-Object {
+      Test-Path (Join-Path $_.FullName 'package.json')
+    })
+
+    $installed = @($all | Where-Object {
+      $pkg = Join-Path $_.FullName 'package.json'
+      try {
+        $json = Get-Content $pkg -Raw | ConvertFrom-Json
+        $null -ne $json.dependencies.'dsh-toolsearch-manage'
+      } catch { $false }
+    })
+
+    if ($installed.Count -eq 1) {
+      $Profile = $installed[0].Name
+      Write-Ok "自动选中 profile：$Profile（只有它依赖 dsh-toolsearch-manage）"
+    } elseif ($installed.Count -eq 0) {
+      Write-Bad "没有任何 profile 依赖 dsh-toolsearch-manage，无从升级。"
+      if ($all.Count -gt 0) {
+        Write-Host '  现有 profile：' -NoNewline
+        Write-Host (($all | ForEach-Object { $_.Name }) -join ', ')
+        Write-Host '  先按 README 的安装步骤装一次，再回来用本脚本升级。'
+      }
       Finish 2
     } else {
-      Write-Bad '存在多个 profile，请用 -Profile 指定：'
-      $candidates | ForEach-Object { Write-Host "    -Profile $($_.Name)" }
+      Write-Bad '多个 profile 都依赖 dsh-toolsearch-manage，请用 -Profile 指定：'
+      $installed | ForEach-Object { Write-Host "    -Profile $($_.Name)" }
+      Write-Host ''
+      Write-Host '  （本脚本一次只处理一个 profile，避免装到一半失败时留下不一致状态）' -ForegroundColor Yellow
       Finish 2
     }
   }
@@ -97,6 +119,33 @@ if (-not (Test-Path $pkgPath)) {
   Finish 2
 }
 Write-Ok "profile 目录：$profileDir"
+
+# An explicit -Profile can still point at a profile that does not depend on this
+# package — `web` on a machine where only `desktop` has it. Say so before the DSH
+# check, so the operator is not told to quit DSH for an install that would only
+# fail later.
+$depNow = $null
+try {
+  $depNow = (Get-Content $pkgPath -Raw | ConvertFrom-Json).dependencies.'dsh-toolsearch-manage'
+} catch {
+  Write-Bad "无法解析 $pkgPath"
+  Finish 2
+}
+if ($null -eq $depNow) {
+  Write-Bad "profile `"$Profile`" 未安装 dsh-toolsearch-manage，没有可升级的东西。"
+  $with = @(Get-ChildItem $profilesRoot -Directory -ErrorAction SilentlyContinue | Where-Object {
+    try { $null -ne ((Get-Content (Join-Path $_.FullName 'package.json') -Raw | ConvertFrom-Json).dependencies.'dsh-toolsearch-manage') } catch { $false }
+  } | ForEach-Object { $_.Name })
+  if ($with.Count -gt 0) {
+    Write-Host "  装了这个包的 profile：" -NoNewline
+    Write-Host ($with -join ', ')
+    Write-Host "  改用：-Profile $($with[0])"
+  } else {
+    Write-Host '  没有任何 profile 装过它，先按 README 的安装步骤装一次。'
+  }
+  Finish 2
+}
+Write-Host "  当前依赖   : $depNow"
 
 # ── 安装前必须确认 DSH 未运行 ───────────────────────────────────────────────
 Write-Step '检查 DSH 是否仍在运行'
