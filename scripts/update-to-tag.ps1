@@ -16,6 +16,9 @@ param(
   [string]$Tag = 'v0.1.0',
   [string]$Profile,
   [string]$Repo = 'yunsheng111/dsh-toolsearch-manage',
+  # Path to a pnpm entry script (.mjs) or executable. When omitted, one that
+  # matches the profile's existing store is chosen automatically.
+  [string]$PnpmPath,
   [switch]$Force,
   [switch]$NoPause
 )
@@ -178,6 +181,109 @@ if ($running.Count -gt 0) {
   Write-Ok 'DSH 未运行'
 }
 
+# ── 选择 pnpm ───────────────────────────────────────────────────────────────
+# A profile's node_modules is tied to the pnpm major that created it: v10 and v11
+# use different store layouts, and using the wrong one fails with
+# ERR_PNPM_UNEXPECTED_STORE — the store path is recorded in node_modules/.modules.yaml.
+# The `pnpm` on PATH is whatever the user installed globally, which need not be the
+# one DSH used. So the version is chosen from the profile itself, not from PATH.
+Write-Step '选择 pnpm'
+
+function Get-PnpmStoreMajor([string]$dir) {
+  $mods = Join-Path $dir 'node_modules\.modules.yaml'
+  if (-not (Test-Path $mods)) { return $null }
+  $raw = Get-Content $mods -Raw
+  # storeDir is a JSON string, so a Windows path appears with doubled backslashes
+  # ("…\\store\\v11"). Match either form; requiring a single separator silently
+  # failed to parse the real file.
+  $m = [regex]::Match($raw, 'store[\\/]{1,2}v(\d+)')
+  if ($m.Success) { return [int]$m.Groups[1].Value }
+  return $null
+}
+
+$needMajor = Get-PnpmStoreMajor $profileDir
+if ($needMajor) {
+  Write-Host "  profile 的 node_modules 使用 store v$needMajor"
+} else {
+  Write-Warn2 '读不到 .modules.yaml，无法判断需要的 pnpm 版本'
+}
+
+# Candidate invocations, tried in order: explicit -PnpmPath, the DSH-bundled pnpm
+# (guaranteed to match what the profile was installed with), then PATH pnpm.
+$candidates = @()
+if ($PnpmPath) {
+  if ($PnpmPath -like '*.mjs') {
+    $candidates += [pscustomobject]@{ Kind = 'mjs'; Path = $PnpmPath; Label = $PnpmPath }
+  } else {
+    $candidates += [pscustomobject]@{ Kind = 'exe'; Path = $PnpmPath; Label = $PnpmPath }
+  }
+}
+
+# The DSH runtime ships the exact pnpm the host uses. Its location is derived from
+# this machine's install, not hardcoded.
+$dshRoots = @()
+foreach ($drive in (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue)) {
+  $dshRoots += @(Get-ChildItem $drive.Root -Directory -Force -ErrorAction SilentlyContinue |
+    Where-Object { Test-Path (Join-Path $_.FullName 'resources\runtime\primary-runtime\dependencies\pnpm\bin\pnpm.mjs') } |
+    ForEach-Object { $_.FullName })
+}
+foreach ($root in $dshRoots) {
+  $mjs = Join-Path $root 'resources\runtime\primary-runtime\dependencies\pnpm\bin\pnpm.mjs'
+  $candidates += [pscustomobject]@{ Kind = 'mjs'; Path = $mjs; Label = "DSH bundled ($mjs)" }
+}
+
+foreach ($name in @('pnpm', 'pnpm.cmd')) {
+  $cmd = Get-Command $name -ErrorAction SilentlyContinue
+  if ($cmd) { $candidates += [pscustomobject]@{ Kind = 'exe'; Path = $cmd.Source; Label = "PATH ($($cmd.Source))" }; break }
+}
+
+$pnpmKind = $null
+$pnpmExe  = $null
+$chosen   = $null
+
+foreach ($c in $candidates) {
+  $ver = $null
+  try {
+    if ($c.Kind -eq 'mjs') {
+      $out = & node $c.Path --version 2>&1
+    } else {
+      $out = & $c.Path --version 2>&1
+    }
+    if ($LASTEXITCODE -eq 0) { $ver = "$out".Trim() }
+  } catch { }
+
+  if (-not $ver) {
+    Write-Host "  ✗ $($c.Label) — 无法运行" -ForegroundColor DarkGray
+    continue
+  }
+
+  $major = [int]($ver -split '\.')[0]
+  if ($needMajor -and $major -ne $needMajor) {
+    Write-Host "  ✗ $($c.Label) — v$ver，需要 v$needMajor" -ForegroundColor DarkGray
+    continue
+  }
+
+  $chosen   = $c
+  $pnpmKind = $c.Kind
+  $pnpmExe  = $c.Path
+  Write-Ok "$($c.Label) — v$ver  匹配"
+  break
+}
+
+if (-not $chosen) {
+  Write-Bad '找不到与 profile 的 store 版本匹配的 pnpm。'
+  Write-Host ''
+  if ($needMajor) {
+    Write-Host "  profile 需要 pnpm v$needMajor 的 store 布局。" -ForegroundColor Yellow
+  }
+  Write-Host '  可选做法：' -ForegroundColor Yellow
+  Write-Host '    1. 用 -PnpmPath 指定一个匹配版本的 pnpm 入口' -ForegroundColor Yellow
+  Write-Host '       例：-PnpmPath "D:\...\resources\runtime\primary-runtime\dependencies\pnpm\bin\pnpm.mjs"' -ForegroundColor Yellow
+  Write-Host '    2. 或者改用 DSH 的插件管理器安装（它自带匹配的 pnpm）' -ForegroundColor Yellow
+  Write-Host '    3. 或者先统一 store：pnpm config set store-dir <路径> --global 后用 pnpm install 重建' -ForegroundColor Yellow
+  Finish 6
+}
+
 # ── 备份 ────────────────────────────────────────────────────────────────────
 Write-Step '备份'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -192,10 +298,18 @@ foreach ($name in @('package.json', 'pnpm-lock.yaml', 'cordis.patch.yml')) {
 # ── 安装 ────────────────────────────────────────────────────────────────────
 Write-Step "安装 $Tag"
 $spec = "github:$Repo#$Tag"
-Write-Host "  pnpm add `"$spec`""
+if ($pnpmKind -eq 'mjs') {
+  Write-Host "  node `"$(Split-Path -Leaf $pnpmExe)`" add `"$spec`""
+} else {
+  Write-Host "  pnpm add `"$spec`""
+}
 Push-Location $profileDir
 try {
-  & pnpm add $spec --ignore-scripts
+  if ($pnpmKind -eq 'mjs') {
+    & node $pnpmExe add $spec --ignore-scripts
+  } else {
+    & $pnpmExe add $spec --ignore-scripts
+  }
   if ($LASTEXITCODE -ne 0) {
     Write-Bad "pnpm add 失败，退出码 $LASTEXITCODE"
     Write-Host "  回滚：Copy-Item `"$profileDir\package.json.bak-$stamp`" `"$profileDir\package.json`" -Force" -ForegroundColor Yellow
