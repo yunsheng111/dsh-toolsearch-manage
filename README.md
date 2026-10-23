@@ -2,7 +2,7 @@
 
 **工具检索与管理 (ToolSearch & Management)** —— DSH 宿主插件，是**工具可见性的唯一所有者**。
 
-> **当前版本** `0.1.0` · 安装锁定 commit `02a4eb7`
+> **当前版本** `0.1.0` · 安装锁定 tag `v0.1.0`
 > 未发布到 npm，从 GitHub 安装；命令见 [安装](#安装)。
 
 它把原本散在三个插件里、且互相抢写同一份 `cordis.patch.yml` 的能力收成一个包：
@@ -49,16 +49,10 @@ on-demand 工具 ──► tool_search ──► schema + 立即变可调用
 
 ```bash
 cd ~/.dsh/profiles/<your-profile>          # 例如 desktop 或 web
-pnpm add "github:yunsheng111/dsh-toolsearch-manage#<commit>"
+pnpm add "github:yunsheng111/dsh-toolsearch-manage#v0.1.0"
 ```
 
-把 `<commit>` 换成下面「当前版本」里的短哈希。**建议锁 commit 而不是跟 `main`**：`main` 是移动目标，锁住才能复现当时验证过的代码。`pnpm-lock.yaml` 会记下解析到的 commit，同一份 lockfile 在任何机器上装出同一份代码。
-
-已锁定可直接用：
-
-```bash
-pnpm add "github:yunsheng111/dsh-toolsearch-manage#02a4eb7"
-```
+**装 tag，不要跟 `main`**：`main` 是移动目标，tag 才指向验证过的那份代码。`pnpm-lock.yaml` 会记下解析到的 commit，同一份 lockfile 在任何机器上装出同一份代码。
 
 安装后**必须重启 DSH**（Desktop 要真正退出进程，关窗口可能只是隐藏）。插件是宿主侧代码，重启才会加载新副本。
 
