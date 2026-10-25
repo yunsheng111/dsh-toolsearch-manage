@@ -1,6 +1,6 @@
 {
   "name": "dsh-toolsearch-manage",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "工具检索与管理 (ToolSearch) — one plugin for DSH tool visibility: MCP on-demand loading with per-session connections, resident/on-demand/disabled tiers for built-in and MCP tools, a prompt-resident catalog, and an MCP market with cross-client import.",
   "license": "MIT",
   "keywords": [
@@ -53,6 +53,9 @@
     "locale/*.json",
     "icon.svg",
     "cordis.patch.yml",
+    "scripts/plugin-guard.mjs",
+    "scripts/update-to-tag.cmd",
+    "scripts/update-to-tag.ps1",
     "README.md",
     "LICENSE",
     "LICENSE-MIT-TOOLBOX-UI",
