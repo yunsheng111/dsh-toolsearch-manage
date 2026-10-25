@@ -2,7 +2,7 @@
 
 **工具检索与管理 (ToolSearch & Management)** —— DSH 宿主插件，是**工具可见性的唯一所有者**。
 
-> **当前版本** `0.2.8` · 安装锁定 tag `v0.2.8`
+> **当前版本** `0.2.9` · 安装锁定 tag `v0.2.9`
 > 未发布到 npm，从 GitHub 安装；命令见 [安装](#安装)。
 
 它把原本散在三个插件里、且互相抢写同一份 `cordis.patch.yml` 的能力收成一个包：
@@ -49,7 +49,7 @@ on-demand 工具 ──► tool_search ──► schema + 立即变可调用
 
 ```bash
 cd ~/.dsh/profiles/<your-profile>          # 例如 desktop 或 web
-pnpm add "github:yunsheng111/dsh-toolsearch-manage#v0.2.8"
+pnpm add "github:yunsheng111/dsh-toolsearch-manage#v0.2.9"
 ```
 
 **装 tag，不要跟 `main`**：`main` 是移动目标，tag 才指向验证过的那份代码。`pnpm-lock.yaml` 会记下解析到的 commit，同一份 lockfile 在任何机器上装出同一份代码。
@@ -82,7 +82,7 @@ pnpm add "github:yunsheng111/dsh-toolsearch-manage#<new-commit>"
 
 ```
 scripts\update-to-tag.cmd
-scripts\update-to-tag.cmd -Tag v0.2.8 -Profile desktop
+scripts\update-to-tag.cmd -Tag v0.2.9 -Profile desktop
 ```
 
 它会先确认 DSH 已完全退出（否则 `pnpm` 会因文件被占用报 `[EPERM]`），备份 `package.json` / `pnpm-lock.yaml` / `cordis.patch.yml`，安装指定 tag，再校验四项：依赖声明、锁定 commit、许可证署名行、`NOTICE`。全过程写入 `~/.dsh/logs/toolsearch-manage-update-<时间戳>.log`。

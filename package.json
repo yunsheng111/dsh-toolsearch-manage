@@ -1,6 +1,6 @@
 {
   "name": "dsh-toolsearch-manage",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "工具检索与管理 (ToolSearch) — one plugin for DSH tool visibility: MCP on-demand loading with per-session connections, resident/on-demand/disabled tiers for built-in and MCP tools, a prompt-resident catalog, and an MCP market with cross-client import.",
   "license": "MIT",
   "keywords": [
