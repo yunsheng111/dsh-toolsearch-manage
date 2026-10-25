@@ -1021,17 +1021,19 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
                 className: "tsm-btn tsm-btn--primary",
                 disabled: updateBusy,
                 onClick: () => stageUpdate("v" + updateResult.latest),
-              }, "登记更新意向"),
-              h("span", { className: "tsm-count" }, "DSH 退出后由 update-to-tag 完成安装"),
+              }, updateBusy ? "更新中…约 1 分钟" : "立即更新"),
+              h("span", { className: "tsm-count" }, "运行中直接安装，装完重开设置页"),
             )
           : null,
         updateStaged !== null
           ? h("p", { className: "tsm-hint" },
-              updateStaged.staged === true
-                ? "✓ " + updateStaged.note
-                : "✗ 无法登记：" + (updateStaged.blockers || []).join("；"),
+              updateStaged.applied === true
+                ? "✓ " + updateStaged.hint
+                : updateStaged.blockers
+                  ? "✗ 无法更新：" + updateStaged.blockers.join("；")
+                  : "✗ 更新失败：" + (updateStaged.error ?? "") + "。" + (updateStaged.hint ?? ""),
             )
-          : h("p", { className: "tsm-hint" }, "本插件按 GitHub tag 分发（无 npm 包），检查与安装都走 GitHub。运行中的 DSH 锁着 profile，安装动作在 DSH 退出后执行。"),
+          : h("p", { className: "tsm-hint" }, "本插件按 GitHub tag 分发（无 npm 包），检查与安装都走 GitHub。更新在 DSH 运行中直接执行，插件代码热重载。"),
       ),
       h("div", { className: "tsm-setting tsm-setting--block" },
         kv("检索工具名", settings.searchToolName),
