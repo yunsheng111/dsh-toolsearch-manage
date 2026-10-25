@@ -19,6 +19,7 @@
   .block { background:#232730; border:1px solid #2a2e37; border-radius:10px; padding:16px; }
   .block h3 { font-size:13px; font-weight:500; color:#8b93a3; margin:0 0 12px; }
   .row { display:flex; gap:8px; align-items:center; }
+  .row + .row { margin-top:10px; }
   .input, textarea.input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid #333842; background:#1a1d24; color:inherit; font:inherit; }
   textarea.input { resize:vertical; }
   .input:focus { outline:none; border-color:#3b82f6; }
@@ -37,13 +38,13 @@
   .tag.bad { background:#2d1518; color:#f87171; }
   .tag.dim { background:#242938; color:#8b93a3; }
   .log { background:#0a0c10; border:1px solid #1d2027; border-radius:10px; padding:12px; font:11.5px/1.7 ui-monospace,Consolas,monospace; color:#8b949e; min-height:430px; white-space:pre-wrap; }
-  .log .ok { color:#3fb950; } .log .warn { color:#d29922; } .log .err { color:#f85150; } .log .dim { color:#6e7681; }
+  .ln { white-space:pre-wrap; }
+  .ln.ok { color:#3fb950; } .ln.warn { color:#d29922; } .ln.err { color:#f85150; } .ln.dim { color:#6e7681; }
   .pkg { margin-top:12px; }
   .pkg b { font-size:12.5px; color:#f87171; }
   .pkg .r { color:#c98a8a; font-size:12px; margin-top:4px; }
-  .steps { margin-top:12px; padding-left:0; list-style:none; }
-  .steps li { font-size:12px; color:#8b93a3; padding:5px 0 5px 26px; position:relative; }
-  .steps li::before { content:attr(data-n); position:absolute; left:0; top:5px; width:18px; height:18px; border-radius:50%; background:#3b82f6; color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center; }
+  .panel { display:none; }
+  .panel.on { display:block; }
 </style>
 </head>
 <body>
@@ -55,71 +56,93 @@
 
   <!-- 二级子标签：检测 tab 内三块切换 -->
   <div class="subtabs">
-    <button class="subtab on">装前预检 PROBE</button>
-    <button class="subtab">装后体检 AUDIT</button>
-    <button class="subtab">任务委派 headless</button>
+    <button class="subtab on" data-p="probe">装前预检 PROBE</button>
+    <button class="subtab" data-p="audit">装后体检 AUDIT</button>
+    <button class="subtab" data-p="task">任务委派 headless</button>
   </div>
 
   <div class="layout">
-    <!-- 左：当前子标签的内容面板（这里展示装前预检） -->
-    <div class="block">
-      <h3>输入要安装的 npm 插件名</h3>
-      <div class="row">
-        <input class="input" value="dshmarket">
-        <button class="btn primary">预检</button>
+    <!-- 左：子标签对应的内容面板（同一时刻只显示一个） -->
+    <div>
+      <!-- ── 装前预检 ── -->
+      <div class="block panel on" id="p-probe">
+        <h3>输入要安装的 npm 插件名</h3>
+        <div class="row">
+          <input class="input" value="dshmarket">
+          <button class="btn primary">预检</button>
+        </div>
+        <div class="verdict pass">✅ <b>dshmarket@1.70.2</b> 不会向 profile 写入 @deepseek-ai/* 宿主内部包。<br>
+          <span style="font-size:12px;opacity:.85">peerDependencies 声明 cordis / schemastery / dsh-settings —— 由宿主提供，属正常声明。</span></div>
+        <table>
+          <tr><th>npm 元数据字段</th><th>检查结果</th><th>含义</th></tr>
+          <tr><td>dependencies</td><td><span class="tag ok">无宿主内部包</span></td><td>真实安装进 profile——出现 @deepseek-ai/* 即红灯</td></tr>
+          <tr><td>optionalDependencies</td><td><span class="tag ok">无宿主内部包</span></td><td>同上，可选也会落盘</td></tr>
+          <tr><td>peerDependencies</td><td><span class="tag dim">cordis · schemastery · dsh-settings</span></td><td>声明由宿主提供，正常</td></tr>
+        </table>
+        <p class="hint">红灯时：结果与原因自动填入「任务委派」输入框，切过去即可派发深度分析。</p>
       </div>
-      <div class="verdict pass">✅ <b>dshmarket@1.70.2</b> 不会向 profile 写入 @deepseek-ai/* 宿主内部包。<br>
-        <span style="font-size:12px;opacity:.85">peerDependencies 声明 cordis / schemastery / dsh-settings —— 由宿主提供，属正常声明。</span></div>
-      <table>
-        <tr><th>npm 元数据字段</th><th>检查结果</th><th>含义</th></tr>
-        <tr><td>dependencies</td><td><span class="tag ok">无宿主内部包</span></td><td>真实安装进 profile——出现 @deepseek-ai/* 即红灯</td></tr>
-        <tr><td>optionalDependencies</td><td><span class="tag ok">无宿主内部包</span></td><td>同上，可选也会落盘</td></tr>
-        <tr><td>peerDependencies</td><td><span class="tag dim">cordis · schemastery · dsh-settings</span></td><td>声明由宿主提供，正常</td></tr>
-      </table>
-      <p class="hint">红灯时：结果与原因自动填入「任务委派」输入框，切过去即可派发深度分析。</p>
+
+      <!-- ── 装后体检 ── -->
+      <div class="block panel" id="p-audit">
+        <h3>当前 profile 完整性（desktop）</h3>
+        <div class="row">
+          <button class="btn">体检当前 profile</button>
+          <span style="font-size:12px;color:#8b93a3">上次：3 个问题包</span>
+        </div>
+        <table>
+          <tr><th>包</th><th>profile 版本</th><th>宿主内置</th><th>判定</th></tr>
+          <tr><td>@deepseek-ai/schemastery</td><td>3.18.5</td><td>—</td><td><span class="tag dim">工具库·共享</span></td></tr>
+          <tr><td>@deepseek-ai/dsh-atomic-write</td><td>0.1.7-rc.2</td><td>0.2.1-rc.2</td><td style="color:#f87171">旧版·顶包风险</td></tr>
+          <tr><td>@deepseek-ai/dsh-credentials</td><td>0.0.1-rc.1</td><td>0.2.1-rc.2</td><td style="color:#f87171">旧版·依赖完整</td></tr>
+          <tr><td>@deepseek-ai/dsh-launch-env…</td><td>0.0.1-rc.3</td><td>0.2.1-rc.2</td><td style="color:#f87171">旧版·依赖完整</td></tr>
+        </table>
+        <p class="hint">共扫描 9 个 @deepseek-ai/* 包：3 个版本落后但均为插件声明的兼容依赖、非插件条目，无启动风险（2026-10-25 崩溃机制已排除）。问题清单已自动填入「任务委派」。</p>
+      </div>
+
+      <!-- ── 任务委派 ── -->
+      <div class="block panel" id="p-task">
+        <h3>把分析任务交给 DSH（headless）</h3>
+        <textarea class="input" rows="7">深度分析当前 profile 的 3 个旧版本 @deepseek-ai 包：
+- dsh-atomic-write@0.1.7-rc.2：宿主内置 0.2.1-rc.2（顶包风险）
+- dsh-credentials@0.0.1-rc.1：落后内置两代，依赖完整
+- dsh-launch-environment@0.0.1-rc.3：同上
+
+请验证归属、抽查消费方 API 调用判断升级安全性、给出处置建议。报告写入工作区 audit-report.md。</textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary">派发</button>
+          <span style="font-size:12px;color:#8b93a3">产出落盘默认工作区 · node24 + web profile + 凭据自动就位</span>
+        </div>
+        <p class="hint">预检红灯 / 体检问题包会自动填入此输入框（可编辑后再派发）。</p>
+      </div>
     </div>
 
     <!-- 右：执行日志（三个子标签共享，跨标签累积） -->
     <div class="log" aria-label="执行日志">
-<div class="ln dim">$ plugin_check · 环境自检</div>
-<div class="ln ok">✓ node 24.21.0（runtime 自动选择）</div>
-<div class="ln ok">✓ profile: desktop（当前运行实例）</div>
-<div class="ln ok">✓ MAGPIE_GATEWAY_KEY ← ~/.dsh/.credentials.yaml</div>
-<div class="ln dim">── 装前预检 ──</div>
-<div class="ln ok">✓ dshmarket@1.70.2 无宿主内部包写入</div>
-<div class="ln warn">❗ 若 dependencies 出现 @deepseek-ai/* → 红灯拒绝</div>
-<div class="ln dim">── 装后体检 ──</div>
-<div class="ln ok">✓ app.asar 解析：304 个宿主包版本</div>
-<div class="ln warn">❗ 3 个旧版本包 → 已填入任务委派</div>
-<div class="ln dim">── 任务委派 ──</div>
-<div class="ln ok">✓ 会话创建 · 报告写入默认工作区</div>
-<div class="ln dim">（跨子标签累积，每次操作实时追加）</div>
-    </div>
-  </div>
-
-  <!-- 其余两个子标签的内容预览（实现说明用，实际界面同一时刻只显示一个） -->
-  <div style="margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:16px">
-    <div class="block" style="opacity:.8">
-      <h3>装后体检 AUDIT（子标签内容预览）</h3>
-      <div class="row"><button class="btn">体检当前 profile</button><span style="font-size:12px;color:#8b93a3">上次：3 个问题包</span></div>
-      <div class="pkg">
-        <b>🔴 3 个问题包（已自动填入任务委派）</b>
-        <div class="r">· dsh-atomic-write@0.1.7-rc.2 — 宿主内置 0.2.1-rc.2（顶包风险）</div>
-        <div class="r">· dsh-credentials@0.0.1-rc.1 — 落后内置两代，依赖完整</div>
-        <div class="r">· dsh-launch-environment@0.0.1-rc.3 — 同上</div>
-      </div>
-    </div>
-    <div class="block" style="opacity:.8">
-      <h3>任务委派 headless（子标签内容预览）</h3>
-      <textarea class="input" rows="4">深度分析当前 profile 的 3 个旧版本 @deepseek-ai 包：
-- dsh-atomic-write@0.1.7-rc.2：宿主内置 0.2.1-rc.2…
-（预检红灯 / 体检问题包自动填入此处，可编辑）</textarea>
-      <div class="row" style="margin-top:8px">
-        <button class="btn primary">派发</button>
-        <span style="font-size:12px;color:#8b93a3">产出落盘默认工作区</span>
-      </div>
+      <div class="ln dim">$ plugin_check · 环境自检</div>
+      <div class="ln ok">✓ node 24.21.0（runtime 自动选择）</div>
+      <div class="ln ok">✓ profile: desktop（当前运行实例）</div>
+      <div class="ln ok">✓ MAGPIE_GATEWAY_KEY ← ~/.dsh/.credentials.yaml</div>
+      <div class="ln dim">── 装前预检 ──</div>
+      <div class="ln ok">✓ dshmarket@1.70.2 无宿主内部包写入</div>
+      <div class="ln warn">❗ 若 dependencies 出现 @deepseek-ai/* → 红灯拒绝</div>
+      <div class="ln dim">── 装后体检 ──</div>
+      <div class="ln ok">✓ app.asar 解析：304 个宿主包版本</div>
+      <div class="ln warn">❗ 3 个旧版本包 → 已填入任务委派</div>
+      <div class="ln dim">── 任务委派 ──</div>
+      <div class="ln ok">✓ 会话创建 · 报告写入默认工作区</div>
+      <div class="ln dim">（跨子标签累积，每次操作实时追加）</div>
     </div>
   </div>
 </div>
+<script>
+  // 子标签切换：点击高亮自己，只显示对应面板（日志不动）
+  const subs = document.querySelectorAll('.subtab');
+  subs.forEach((b) => b.addEventListener('click', () => {
+    subs.forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+    document.querySelectorAll('.panel').forEach((p) => p.classList.remove('on'));
+    document.getElementById('p-' + b.dataset.p).classList.add('on');
+  }));
+</script>
 </body>
 </html>
