@@ -726,6 +726,32 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [busy, setBusy] = useState(false);
+    const [updateBusy, setUpdateBusy] = useState(false);
+    const [updateResult, setUpdateResult] = useState(null);
+    const [updateStaged, setUpdateStaged] = useState(null);
+
+    const checkUpdate = async () => {
+      setUpdateBusy(true);
+      setUpdateResult(null);
+      try {
+        setUpdateResult(await postJson(API + "/update-check"));
+      } catch (err) {
+        setUpdateResult({ reachable: false, error: errText(err) });
+      } finally {
+        setUpdateBusy(false);
+      }
+    };
+
+    const stageUpdate = async (targetTag) => {
+      setUpdateBusy(true);
+      try {
+        setUpdateStaged(await postJson(API + "/update-stage", { targetTag }));
+      } catch (err) {
+        setError(errText(err));
+      } finally {
+        setUpdateBusy(false);
+      }
+    };
 
     const refresh = useCallback(async () => {
       try {
@@ -894,6 +920,42 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
         h("p", { className: "tsm-hint" }, "localhost、本机名与 IP 字面量始终允许；其他主机名要写在这里才能用浏览器访问这些路由。"),
       ),
       h("div", { className: "tsm-setting tsm-setting--block" },
+        h("div", { className: "tsm-setting__row" },
+          h("span", { className: "tsm-setting__label" }, "插件更新"),
+          h("button", {
+            type: "button",
+            className: "tsm-btn",
+            disabled: updateBusy,
+            onClick: checkUpdate,
+          }, updateBusy ? "检查中…" : "检查更新"),
+          updateResult !== null
+            ? updateResult.reachable === false
+              ? h("span", { className: "tsm-count" }, "GitHub 不可达，稍后再试")
+              : updateResult.upToDate
+                ? h("span", { className: "tsm-count" }, "已是最新（v" + updateResult.currentVersion + "）")
+                : h("span", { className: "tsm-count" }, "v" + updateResult.currentVersion + " → v" + updateResult.latest + " 可更新")
+            : h("span", { className: "tsm-count" }, "当前 v" + (settings.pluginVersion ?? "?") + " · GitHub tag 分发"),
+        ),
+        updateResult !== null && updateResult.reachable === true && updateResult.upToDate === false
+          ? h("div", { className: "tsm-setting__row" },
+              h("button", {
+                type: "button",
+                className: "tsm-btn tsm-btn--primary",
+                disabled: updateBusy,
+                onClick: () => stageUpdate("v" + updateResult.latest),
+              }, "登记更新意向"),
+              h("span", { className: "tsm-count" }, "DSH 退出后由 update-to-tag 完成安装"),
+            )
+          : null,
+        updateStaged !== null
+          ? h("p", { className: "tsm-hint" },
+              updateStaged.staged === true
+                ? "✓ " + updateStaged.note
+                : "✗ 无法登记：" + (updateStaged.blockers || []).join("；"),
+            )
+          : h("p", { className: "tsm-hint" }, "本插件按 GitHub tag 分发（无 npm 包），检查与安装都走 GitHub。运行中的 DSH 锁着 profile，安装动作在 DSH 退出后执行。"),
+      ),
+      h("div", { className: "tsm-setting tsm-setting--block" },
         kv("检索工具名", settings.searchToolName),
         kv("当前 profile", settings.profile),
         kv("patch 文件", settings.patchPath),
@@ -972,6 +1034,8 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
     ".tsm-btn:hover:not(:disabled) { border-color:var(--dsw-alias-brand-primary); color:var(--dsw-alias-brand-primary); }",
     ".tsm-btn:disabled { opacity:.5; cursor:not-allowed; }",
     ".tsm-btn--ghost { border-color:var(--dsw-alias-border-l1); color:var(--dsw-alias-label-secondary); }",
+    ".tsm-btn--primary { border-color:var(--dsw-alias-brand-primary); background:var(--dsw-alias-brand-primary); color:var(--dsw-alias-bg-layer-invert, #fff); }",
+    ".tsm-btn--primary:hover:not(:disabled) { color:var(--dsw-alias-bg-layer-invert, #fff); opacity:.9; }",
     ".tsm-btn--danger { border-color:var(--dsw-alias-state-error-primary); color:var(--dsw-alias-state-error-primary); }",
     ".tsm-tiers { display:inline-flex; border:1px solid var(--dsw-alias-border-l2); border-radius:6px; overflow:hidden; }",
     ".tsm-tier { font-size:11px; line-height:1; padding:5px 9px; border:none; background:transparent; color:var(--dsw-alias-label-secondary); cursor:pointer; }",
