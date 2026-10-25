@@ -1050,6 +1050,7 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
    * 与设置页那行共用后端路由，这里给完整结果表和委派表单。
    */
   function CheckPanel() {
+    const [subTab, setSubTab] = useState("probe");
     const [pkgName, setPkgName] = useState("");
     const [probeBusy, setProbeBusy] = useState(false);
     const [probe, setProbe] = useState(null);
@@ -1058,16 +1059,46 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
     const [task, setTask] = useState("");
     const [taskBusy, setTaskBusy] = useState(false);
     const [taskResult, setTaskResult] = useState(null);
+    // Three independent log panels, switched in sync with the sub-tabs.
+    const [probeLog, setProbeLog] = useState([]);
+    const [auditLog, setAuditLog] = useState([]);
+    const [taskLog, setTaskLog] = useState([]);
+
+    const append = (setter) => (k, t) => setter((prev) => [...prev, { k, t }]);
+    const sayProbe = append(setProbeLog);
+    const sayAudit = append(setAuditLog);
+    const sayTask = append(setTaskLog);
+
+    /** Fill the delegation textarea from a probe failure or audit findings. */
+    const fillTask = (lines) => setTask(lines.join("\n"));
 
     const runProbe = async () => {
       const name = pkgName.trim();
       if (name === "") return;
       setProbeBusy(true);
       setProbe(null);
+      sayProbe("dim", "$ plugin-probe " + name);
+      sayProbe("", "→ 拉取 npm 元数据");
       try {
-        setProbe(await postJson(API + "/plugin-probe", { package: name }));
+        const r = await postJson(API + "/plugin-probe", { package: name });
+        setProbe(r);
+        if (r.status === "pass") {
+          sayProbe("ok", "✓ " + name + " 无宿主内部包写入（绿灯）");
+        } else if (r.status === "fail") {
+          sayProbe("warn", "❗ " + name + " 会拉宿主内部包进 profile → 红灯拒绝");
+          for (const p of r.packages || []) sayProbe("warn", "　· " + p.package + "（经 " + p.via + " 声明）");
+          sayProbe("dim", "→ 已填入任务委派");
+          fillTask([
+            "分析插件 " + name + " 的依赖问题并给出安装建议：",
+            (r.packages || []).map((p) => "- " + p.package + "（经 " + p.via + " 声明）").join("\n"),
+            "它会把 @deepseek-ai/* 宿主内部包真实安装进 profile（顶包风险）。请评估：能否安全安装、有无替代版本、或应向作者提什么 issue。",
+          ]);
+        } else {
+          sayProbe("warn", "❗ 查不到 npm 元数据（GitHub/本地安装）→ 装后跑体检");
+        }
       } catch (err) {
         setProbe({ status: "unknown", summary: errText(err), packages: [] });
+        sayProbe("err", "✗ 预检失败：" + errText(err));
       } finally {
         setProbeBusy(false);
       }
@@ -1076,10 +1107,25 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
     const runAudit = async () => {
       setAuditBusy(true);
       setAudit(null);
+      sayAudit("dim", "$ plugin-audit --profile desktop");
+      sayAudit("", "→ 解析宿主内置版本 + 扫描 node_modules/@deepseek-ai");
       try {
-        setAudit(await postJson(API + "/plugin-audit"));
+        const r = await postJson(API + "/plugin-audit");
+        setAudit(r);
+        if (r.status === "pass") {
+          sayAudit("ok", "✓ profile 与宿主无版本冲突、依赖齐全");
+        } else {
+          for (const p of r.packages || []) sayAudit("warn", "❗ " + p.package + "：" + (p.reasons || []).join("；"));
+          sayAudit("dim", "→ 问题清单已填入任务委派");
+          fillTask([
+            "深度分析当前 profile 的 " + (r.packages?.length ?? "?") + " 个旧版本 @deepseek-ai 包：",
+            (r.packages || []).map((p) => "- " + p.package + "@" + (p.version ?? "?") + "：" + (p.reasons || []).join("；")).join("\n"),
+            "请验证归属（哪个插件的哪个字段拉入）、抽查消费方 API 调用判断升级安全性、给出处置建议（保持现状 / pnpm.overrides / 提 issue）。报告写入工作区 audit-report.md。",
+          ]);
+        }
       } catch (err) {
         setAudit({ status: "fail", summary: errText(err), packages: [] });
+        sayAudit("err", "✗ 体检失败：" + errText(err));
       } finally {
         setAuditBusy(false);
       }
@@ -1090,78 +1136,146 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
       if (text === "") return;
       setTaskBusy(true);
       setTaskResult(null);
+      sayTask("dim", "$ dsh headless \"分析任务…\"");
+      sayTask("", "→ 环境自检：node24 · web profile · MAGPIE key");
       try {
-        setTaskResult(await postJson(API + "/plugin-delegate", { task: text }));
+        const r = await postJson(API + "/plugin-delegate", { task: text });
+        setTaskResult(r);
+        if (r.ok) {
+          sayTask("ok", "✓ 任务完成" + (r.hint ? "：" + r.hint : ""));
+        } else {
+          sayTask("err", "✗ " + (r.error ?? "派发失败"));
+        }
       } catch (err) {
         setTaskResult({ ok: false, error: errText(err) });
+        sayTask("err", "✗ " + errText(err));
       } finally {
         setTaskBusy(false);
       }
     };
 
-    const verdictClass = (status) => status === "pass" ? "tsm-notice--success" : status === "fail" ? "tsm-notice--error" : "";
+    /** One terminal-styled log panel; the log data is per sub-tab. */
+    const LogPanel = ({ title, badge, lines }) =>
+      h("div", { style: { display: "flex", flexDirection: "column", height: "100%" } },
+        h("div", { style: { display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--dsw-alias-label-secondary,#8b93a3)", marginBottom: "10px" } },
+          h("span", null, title),
+          h("span", { style: { fontSize: "11px", padding: "2px 8px", borderRadius: "9px", background: "rgba(128,128,128,.15)", color: "inherit" } }, badge),
+        ),
+        h("div", {
+          "aria-label": title,
+          style: {
+            flex: 1, background: "#0a0c10", border: "1px solid rgba(128,128,128,.25)", borderRadius: "10px",
+            padding: "14px 16px", fontFamily: "ui-monospace,Consolas,monospace", fontSize: "12px",
+            lineHeight: 1.9, color: "#8b949e", whiteSpace: "pre-wrap", overflow: "auto", minHeight: "360px",
+          },
+        },
+          lines.length === 0 ? h("div", { style: { color: "#6e7681" } }, "（暂无日志，操作后在此追加）") :
+          lines.map((l, i) => h("div", {
+            key: i,
+            style: { color: l.k === "ok" ? "#3fb950" : l.k === "warn" ? "#d29922" : l.k === "err" ? "#f85150" : l.k === "dim" ? "#6e7681" : undefined },
+          }, l.t)),
+        ),
+      );
+
+    const subTabBtn = (id, label) =>
+      h("button", {
+        type: "button",
+        className: cx("tsm-btn", subTab === id && "tsm-btn--primary"),
+        style: { borderRadius: "7px", padding: "6px 18px" },
+        onClick: () => setSubTab(id),
+      }, label);
+
+    const verdictNotice = probe === null ? null
+      : h(Notice, { kind: probe.status === "pass" ? "success" : probe.status === "fail" ? "error" : undefined },
+          (probe.status === "fail" ? "🔴 " : probe.status === "pass" ? "✅ " : "⚠️ ") + (probe.summary ?? ""));
 
     return h("div", { className: "tsm-body" },
-      // 装前预检
-      h("div", { className: "tsm-setting tsm-setting--block" },
-        h("div", { className: "tsm-setting__row" },
-          h("span", { className: "tsm-setting__label" }, "装前预检"),
-          h("input", {
-            className: "tsm-input tsm-input--wide",
-            placeholder: "要安装的 npm 插件名，如 dshmarket",
-            value: pkgName,
-            disabled: probeBusy,
-            onChange: (e) => setPkgName(e.target.value),
-            onKeyDown: (e) => { if (e.key === "Enter") runProbe(); },
-          }),
-          h("button", { type: "button", className: "tsm-btn tsm-btn--primary", disabled: probeBusy || pkgName.trim() === "", onClick: runProbe }, probeBusy ? "预检中…" : "预检"),
-        ),
-        probe !== null
-          ? h(Notice, { kind: probe.status === "pass" ? "success" : probe.status === "fail" ? "error" : undefined },
-              (probe.status === "fail" ? "🔴 " : probe.status === "pass" ? "✅ " : "⚠️ ") + (probe.summary ?? ""))
-          : h("p", { className: "tsm-hint" }, "拉取 npm 元数据：插件若在 dependencies / optionalDependencies 声明 @deepseek-ai/* 宿主内部包则红灯（拉进 profile 顶掉内置实现 → 启动崩溃）。"),
-        probe !== null && (probe.peerNotes || []).length > 0
-          ? h("p", { className: "tsm-hint" }, "peerDependencies 声明（宿主提供，正常）：" + probe.peerNotes.join("、"))
-          : null,
+      // second-level sub-tabs
+      h("div", { style: { display: "flex", gap: "6px", marginBottom: "16px" } },
+        subTabBtn("probe", "装前预检"),
+        subTabBtn("audit", "装后体检"),
+        subTabBtn("task", "任务委派"),
       ),
-      // 装后体检
-      h("div", { className: "tsm-setting tsm-setting--block" },
-        h("div", { className: "tsm-setting__row" },
-          h("span", { className: "tsm-setting__label" }, "装后体检"),
-          h("button", { type: "button", className: "tsm-btn", disabled: auditBusy, onClick: runAudit }, auditBusy ? "体检中…" : "体检当前 profile"),
+      h("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,7fr) minmax(0,5fr)", gap: "20px", alignItems: "stretch" } },
+        // left: the active sub-tab's panel
+        h("div", null,
+          // ── probe ──
+          subTab === "probe" ? h("div", { className: "tsm-setting tsm-setting--block", style: { padding: "20px 22px" } },
+            h("div", { className: "tsm-setting__row" },
+              h("input", {
+                className: "tsm-input tsm-input--wide",
+                placeholder: "要安装的 npm 插件名，如 dshmarket",
+                value: pkgName,
+                disabled: probeBusy,
+                onChange: (e) => setPkgName(e.target.value),
+                onKeyDown: (e) => { if (e.key === "Enter") runProbe(); },
+              }),
+              h("button", { type: "button", className: "tsm-btn tsm-btn--primary", disabled: probeBusy || pkgName.trim() === "", onClick: runProbe }, probeBusy ? "预检中…" : "预检"),
+            ),
+            verdictNotice,
+            probe !== null && probe.status === "fail" && (probe.packages || []).length > 0
+              ? h("div", { style: { marginTop: "8px" } },
+                  (probe.packages || []).map((p) => h("div", { key: p.package, className: "tsm-hint" }, "· " + p.package + "（经 " + p.via + " 声明）")))
+              : null,
+            probe !== null && (probe.peerNotes || []).length > 0
+              ? h("p", { className: "tsm-hint" }, "peerDependencies 声明（宿主提供，正常）：" + probe.peerNotes.join("、"))
+              : null,
+            h("p", { className: "tsm-hint" }, "拉取 npm 元数据：dependencies / optionalDependencies 出现 @deepseek-ai/* 宿主内部包则红灯（拉进 profile 顶掉内置实现 → 启动崩溃）。红灯结果自动填入「任务委派」。"),
+          ) : null,
+          // ── audit ──
+          subTab === "audit" ? h("div", { className: "tsm-setting tsm-setting--block", style: { padding: "20px 22px" } },
+            h("div", { className: "tsm-setting__row" },
+              h("button", { type: "button", className: "tsm-btn", disabled: auditBusy, onClick: runAudit }, auditBusy ? "体检中…" : "体检当前 profile"),
+            ),
+            audit !== null
+              ? h("div", { className: "tsm-hint", style: { marginTop: "10px" } },
+                  h("div", null, (audit.status === "pass" ? "✅ " : "🔴 ") + (audit.summary ?? "")),
+                  (audit.packages || []).map((p) =>
+                    h("div", { key: p.package, style: { marginTop: "8px" } },
+                      h("b", null, p.package + (p.version ? "@" + p.version : "")),
+                      (p.reasons || []).map((r) => h("div", { key: r, style: { paddingLeft: "1em" } }, "· " + r)),
+                    ),
+                  ),
+                )
+              : h("p", { className: "tsm-hint" }, "扫描当前 profile 的 node_modules/@deepseek-ai，与宿主内置版本对照并验证依赖可解析。GitHub / 本地路径安装的插件无元数据，装后跑这里。"),
+            audit !== null && audit.status === "fail"
+              ? h("p", { className: "tsm-hint" }, "↑ 问题清单已自动填入「任务委派」。")
+              : null,
+          ) : null,
+          // ── delegate ──
+          subTab === "task" ? h("div", { className: "tsm-setting tsm-setting--block", style: { padding: "20px 22px" } },
+            h("textarea", {
+              style: {
+                width: "100%", display: "block", boxSizing: "border-box", resize: "vertical",
+                padding: "9px 12px", borderRadius: "8px", border: "1px solid var(--dsw-alias-border-l2,#333842)",
+                background: "var(--dsw-alias-bg-layer-1,#1a1d24)", color: "inherit",
+                font: "inherit", lineHeight: 1.6, minHeight: "200px",
+              },
+              placeholder: "预检红灯 / 体检问题包会自动填到这里（可改），也可手写任意分析任务",
+              value: task,
+              disabled: taskBusy,
+              onChange: (e) => setTask(e.target.value),
+            }),
+            h("div", { className: "tsm-setting__row", style: { marginTop: "12px" } },
+              h("button", { type: "button", className: "tsm-btn tsm-btn--primary", disabled: taskBusy || task.trim() === "", onClick: delegateTask }, taskBusy ? "派发中…" : "派发"),
+              h("span", { className: "tsm-count" }, "产出落盘默认工作区 · node24 + web profile + 凭据自动就位"),
+            ),
+            taskResult !== null
+              ? h("p", { className: "tsm-hint" }, taskResult.ok === true ? "✓ " + (taskResult.hint ?? "已派发完成") : "✗ " + (taskResult.error ?? "派发失败"))
+              : h("p", { className: "tsm-hint" }, "通过 dsh headless 把任务交给一个独立 DSH 会话执行，产出以文件落盘工作区。"),
+          ) : null,
         ),
-        audit !== null
-          ? h("div", { className: "tsm-hint" },
-              h("div", null, (audit.status === "pass" ? "✅ " : "🔴 ") + (audit.summary ?? "")),
-              (audit.packages || []).map((p) =>
-                h("div", { key: p.package, style: { marginTop: "6px" } },
-                  h("b", null, p.package + (p.version ? "@" + p.version : "")),
-                  (p.reasons || []).map((r) => h("div", { key: r }, "　· " + r)),
-                ),
-              ),
-            )
-          : h("p", { className: "tsm-hint" }, "扫描当前 profile 的 node_modules/@deepseek-ai，与宿主内置版本对照并验证依赖可解析。GitHub / 本地路径安装的插件装前无元数据，装后跑这里。"),
-      ),
-      // 任务委派
-      h("div", { className: "tsm-setting tsm-setting--block" },
-        h("div", { className: "tsm-setting__row" },
-          h("span", { className: "tsm-setting__label" }, "任务委派"),
-          h("textarea", {
-            className: "tsm-input tsm-input--wide",
-            rows: 2,
-            placeholder: "发现的问题转交 DSH 深度分析，如：分析这 3 个旧版本包的升级安全性并给处置建议",
-            value: task,
-            disabled: taskBusy,
-            onChange: (e) => setTask(e.target.value),
-          }),
-          h("button", { type: "button", className: "tsm-btn", disabled: taskBusy || task.trim() === "", onClick: delegateTask }, taskBusy ? "派发中…" : "派发"),
+        // right: the active sub-tab's log panel, switched in sync
+        h("div", { style: { minHeight: "420px" } },
+          subTab === "probe" ? h(LogPanel, { title: "预检日志", badge: "node24 ✓ · GitHub API", lines: probeLog }) : null,
+          subTab === "audit" ? h(LogPanel, { title: "体检日志", badge: "asar 解析 ✓", lines: auditLog }) : null,
+          subTab === "task" ? h(LogPanel, { title: "委派日志", badge: "dsh headless", lines: taskLog }) : null,
         ),
-        taskResult !== null
-          ? h("p", { className: "tsm-hint" }, taskResult.ok === true ? "✓ " + (taskResult.hint ?? "已派发") : "✗ " + (taskResult.error ?? "派发失败"))
-          : h("p", { className: "tsm-hint" }, "通过 dsh headless 把任务交给一个独立 DSH 会话执行（node24 + web profile + 凭据自动就位），产出以文件落盘工作区。"),
       ),
     );
   }
+
+
 
   // ── page ─────────────────────────────────────────────────────────────────
 
