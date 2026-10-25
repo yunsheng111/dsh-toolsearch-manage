@@ -729,6 +729,34 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
     const [updateBusy, setUpdateBusy] = useState(false);
     const [updateResult, setUpdateResult] = useState(null);
     const [updateStaged, setUpdateStaged] = useState(null);
+    const [probeBusy, setProbeBusy] = useState(false);
+    const [probeResult, setProbeResult] = useState(null);
+    const [auditBusy, setAuditBusy] = useState(false);
+    const [auditResult, setAuditResult] = useState(null);
+
+    const runProbe = async (pkgName) => {
+      setProbeBusy(true);
+      setProbeResult(null);
+      try {
+        setProbeResult(await postJson(API + "/plugin-probe", { package: pkgName }));
+      } catch (err) {
+        setProbeResult({ status: "unknown", summary: errText(err) });
+      } finally {
+        setProbeBusy(false);
+      }
+    };
+
+    const runAudit = async () => {
+      setAuditBusy(true);
+      setAuditResult(null);
+      try {
+        setAuditResult(await postJson(API + "/plugin-audit"));
+      } catch (err) {
+        setAuditResult({ status: "fail", summary: errText(err), packages: [] });
+      } finally {
+        setAuditBusy(false);
+      }
+    };
 
     const checkUpdate = async () => {
       setUpdateBusy(true);
@@ -918,6 +946,56 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
           }),
         ),
         h("p", { className: "tsm-hint" }, "localhost、本机名与 IP 字面量始终允许；其他主机名要写在这里才能用浏览器访问这些路由。"),
+      ),
+      h("div", { className: "tsm-setting tsm-setting--block" },
+        h("div", { className: "tsm-setting__row" },
+          h("span", { className: "tsm-setting__label" }, "插件体检"),
+          h("input", {
+            className: "tsm-input",
+            placeholder: "npm 包名，装前预检",
+            disabled: probeBusy,
+            onKeyDown: (event) => {
+              if (event.key === "Enter") {
+                const raw = event.target.value.trim();
+                if (raw !== "") runProbe(raw);
+              }
+            },
+          }),
+          h("button", {
+            type: "button",
+            className: "tsm-btn",
+            disabled: probeBusy,
+            onClick: (event) => {
+              const input = event.target.closest(".tsm-setting__row").querySelector("input");
+              const raw = (input?.value ?? "").trim();
+              if (raw !== "") runProbe(raw);
+            },
+          }, probeBusy ? "预检中…" : "装前预检"),
+          h("button", {
+            type: "button",
+            className: "tsm-btn",
+            disabled: auditBusy,
+            onClick: runAudit,
+          }, auditBusy ? "体检中…" : "体检当前 profile"),
+        ),
+        probeResult !== null
+          ? h("p", { className: "tsm-hint" }, (probeResult.status === "fail" ? "🔴 " : probeResult.status === "pass" ? "✅ " : "⚠️ ") + (probeResult.summary ?? ""))
+          : null,
+        probeResult !== null && (probeResult.peerNotes || []).length > 0
+          ? h("p", { className: "tsm-hint" }, "peerDependencies 声明（宿主提供，正常）：" + probeResult.peerNotes.join("、"))
+          : null,
+        auditResult !== null
+          ? h("div", { className: "tsm-hint" },
+              h("div", null, (auditResult.status === "pass" ? "✅ " : "🔴 ") + (auditResult.summary ?? "")),
+              (auditResult.packages || []).map((p) =>
+                h("div", { key: p.package },
+                  h("b", null, p.package + (p.version ? "@" + p.version : "")),
+                  (p.reasons || []).map((r) => h("div", { key: r }, "　· " + r)),
+                ),
+              ),
+            )
+          : null,
+        h("p", { className: "tsm-hint" }, "装前预检查 npm 元数据（会拉宿主内部包进 profile 的插件亮红灯）；装后体检扫描当前 profile 与宿主内置版本的差异。GitHub/本地安装的插件没有 npm 元数据，装后体检即可。"),
       ),
       h("div", { className: "tsm-setting tsm-setting--block" },
         h("div", { className: "tsm-setting__row" },
