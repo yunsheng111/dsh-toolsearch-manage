@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>检测 tab · 原型图 v3（二级子标签）</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 13px/1.5 -apple-system,'Segoe UI','Microsoft YaHei',sans-serif; background:#16181d; color:#e2e8f0; padding:24px; }
+  .win { max-width:1060px; margin:0 auto; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid #2a2e37; padding-bottom:8px; margin-bottom:14px; }
+  .tab { padding:7px 16px; border-radius:8px; border:none; background:transparent; color:#8b93a3; font-size:13px; cursor:pointer; }
+  .tab.on { background:#2b3245; color:#e2e8f0; font-weight:500; }
+  .subtabs { display:flex; gap:4px; margin-bottom:14px; }
+  .subtab { padding:5px 14px; border-radius:6px; border:1px solid transparent; background:none; color:#8b93a3; font-size:12px; cursor:pointer; }
+  .subtab.on { border-color:#3b82f6; color:#7cb0ff; background:rgba(59,130,246,.12); }
+  .layout { display:grid; grid-template-columns: 1fr 330px; gap:16px; align-items:start; }
+  @media (max-width:860px){ .layout{grid-template-columns:1fr} }
+  .block { background:#232730; border:1px solid #2a2e37; border-radius:10px; padding:16px; }
+  .block h3 { font-size:13px; font-weight:500; color:#8b93a3; margin:0 0 12px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .input, textarea.input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid #333842; background:#1a1d24; color:inherit; font:inherit; }
+  textarea.input { resize:vertical; }
+  .input:focus { outline:none; border-color:#3b82f6; }
+  .btn { padding:8px 16px; border-radius:8px; border:none; cursor:pointer; font-size:13px; background:#333a4a; color:#e2e8f0; }
+  .btn.primary { background:#3b82f6; color:#fff; font-weight:500; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .hint { font-size:12px; color:#8b93a3; margin-top:10px; }
+  .verdict { border-radius:8px; padding:10px 12px; margin-top:12px; font-size:12.5px; }
+  .verdict.pass { background:#12271c; border:1px solid #1e4030; color:#6ee7a0; }
+  .verdict.fail { background:#2d1518; border:1px solid #5c2328; color:#f87171; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:12px; }
+  th { text-align:left; padding:6px 8px; color:#8b93a3; font-weight:500; border-bottom:1px solid #2a2e37; }
+  td { padding:7px 8px; border-bottom:1px solid #262a33; vertical-align:top; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; }
+  .tag.ok { background:#12271c; color:#6ee7a0; }
+  .tag.bad { background:#2d1518; color:#f87171; }
+  .tag.dim { background:#242938; color:#8b93a3; }
+  .log { background:#0a0c10; border:1px solid #1d2027; border-radius:10px; padding:12px; font:11.5px/1.7 ui-monospace,Consolas,monospace; color:#8b949e; min-height:430px; white-space:pre-wrap; }
+  .log .ok { color:#3fb950; } .log .warn { color:#d29922; } .log .err { color:#f85150; } .log .dim { color:#6e7681; }
+  .pkg { margin-top:12px; }
+  .pkg b { font-size:12.5px; color:#f87171; }
+  .pkg .r { color:#c98a8a; font-size:12px; margin-top:4px; }
+  .steps { margin-top:12px; padding-left:0; list-style:none; }
+  .steps li { font-size:12px; color:#8b93a3; padding:5px 0 5px 26px; position:relative; }
+  .steps li::before { content:attr(data-n); position:absolute; left:0; top:5px; width:18px; height:18px; border-radius:50%; background:#3b82f6; color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center; }
+</style>
+</head>
+<body>
+<div class="win">
+  <!-- 顶栏：插件现有六标签 -->
+  <div class="tabs">
+    <button class="tab">能力</button><button class="tab">市场</button><button class="tab">导入</button><button class="tab">技能</button><button class="tab on">检测</button><button class="tab">设置</button>
+  </div>
+
+  <!-- 二级子标签：检测 tab 内三块切换 -->
+  <div class="subtabs">
+    <button class="subtab on">装前预检 PROBE</button>
+    <button class="subtab">装后体检 AUDIT</button>
+    <button class="subtab">任务委派 headless</button>
+  </div>
+
+  <div class="layout">
+    <!-- 左：当前子标签的内容面板（这里展示装前预检） -->
+    <div class="block">
+      <h3>输入要安装的 npm 插件名</h3>
+      <div class="row">
+        <input class="input" value="dshmarket">
+        <button class="btn primary">预检</button>
+      </div>
+      <div class="verdict pass">✅ <b>dshmarket@1.70.2</b> 不会向 profile 写入 @deepseek-ai/* 宿主内部包。<br>
+        <span style="font-size:12px;opacity:.85">peerDependencies 声明 cordis / schemastery / dsh-settings —— 由宿主提供，属正常声明。</span></div>
+      <table>
+        <tr><th>npm 元数据字段</th><th>检查结果</th><th>含义</th></tr>
+        <tr><td>dependencies</td><td><span class="tag ok">无宿主内部包</span></td><td>真实安装进 profile——出现 @deepseek-ai/* 即红灯</td></tr>
+        <tr><td>optionalDependencies</td><td><span class="tag ok">无宿主内部包</span></td><td>同上，可选也会落盘</td></tr>
+        <tr><td>peerDependencies</td><td><span class="tag dim">cordis · schemastery · dsh-settings</span></td><td>声明由宿主提供，正常</td></tr>
+      </table>
+      <p class="hint">红灯时：结果与原因自动填入「任务委派」输入框，切过去即可派发深度分析。</p>
+    </div>
+
+    <!-- 右：执行日志（三个子标签共享，跨标签累积） -->
+    <div class="log" aria-label="执行日志">
+<div class="ln dim">$ plugin_check · 环境自检</div>
+<div class="ln ok">✓ node 24.21.0（runtime 自动选择）</div>
+<div class="ln ok">✓ profile: desktop（当前运行实例）</div>
+<div class="ln ok">✓ MAGPIE_GATEWAY_KEY ← ~/.dsh/.credentials.yaml</div>
+<div class="ln dim">── 装前预检 ──</div>
+<div class="ln ok">✓ dshmarket@1.70.2 无宿主内部包写入</div>
+<div class="ln warn">❗ 若 dependencies 出现 @deepseek-ai/* → 红灯拒绝</div>
+<div class="ln dim">── 装后体检 ──</div>
+<div class="ln ok">✓ app.asar 解析：304 个宿主包版本</div>
+<div class="ln warn">❗ 3 个旧版本包 → 已填入任务委派</div>
+<div class="ln dim">── 任务委派 ──</div>
+<div class="ln ok">✓ 会话创建 · 报告写入默认工作区</div>
+<div class="ln dim">（跨子标签累积，每次操作实时追加）</div>
+    </div>
+  </div>
+
+  <!-- 其余两个子标签的内容预览（实现说明用，实际界面同一时刻只显示一个） -->
+  <div style="margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:16px">
+    <div class="block" style="opacity:.8">
+      <h3>装后体检 AUDIT（子标签内容预览）</h3>
+      <div class="row"><button class="btn">体检当前 profile</button><span style="font-size:12px;color:#8b93a3">上次：3 个问题包</span></div>
+      <div class="pkg">
+        <b>🔴 3 个问题包（已自动填入任务委派）</b>
+        <div class="r">· dsh-atomic-write@0.1.7-rc.2 — 宿主内置 0.2.1-rc.2（顶包风险）</div>
+        <div class="r">· dsh-credentials@0.0.1-rc.1 — 落后内置两代，依赖完整</div>
+        <div class="r">· dsh-launch-environment@0.0.1-rc.3 — 同上</div>
+      </div>
+    </div>
+    <div class="block" style="opacity:.8">
+      <h3>任务委派 headless（子标签内容预览）</h3>
+      <textarea class="input" rows="4">深度分析当前 profile 的 3 个旧版本 @deepseek-ai 包：
+- dsh-atomic-write@0.1.7-rc.2：宿主内置 0.2.1-rc.2…
+（预检红灯 / 体检问题包自动填入此处，可编辑）</textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary">派发</button>
+        <span style="font-size:12px;color:#8b93a3">产出落盘默认工作区</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
