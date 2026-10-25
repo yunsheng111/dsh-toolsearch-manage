@@ -1031,7 +1031,7 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
                 ? "✓ " + updateStaged.hint
                 : updateStaged.blockers
                   ? "✗ 无法更新：" + updateStaged.blockers.join("；")
-                  : "✗ 更新失败：" + (updateStaged.error ?? "") + "。" + (updateStaged.hint ?? ""),
+                  : "✗ 更新失败：" + (updateStaged.error ?? "未知错误") + "。" + (updateStaged.hint ?? "") + (updateStaged.output ? "\npnpm 输出尾部：" + updateStaged.output : ""),
             )
           : h("p", { className: "tsm-hint" }, "本插件按 GitHub tag 分发（无 npm 包），检查与安装都走 GitHub。更新在 DSH 运行中直接执行，插件代码热重载。"),
       ),
