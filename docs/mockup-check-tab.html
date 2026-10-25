@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>检测 tab · 原型图 v2</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 13px/1.5 -apple-system,'Segoe UI','Microsoft YaHei',sans-serif; background:#16181d; color:#e2e8f0; padding:24px; }
+  .win { max-width:1060px; margin:0 auto; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid #2a2e37; padding-bottom:8px; margin-bottom:16px; }
+  .tab { padding:7px 16px; border-radius:8px; border:none; background:transparent; color:#8b93a3; font-size:13px; cursor:pointer; }
+  .tab.on { background:#2b3245; color:#e2e8f0; font-weight:500; }
+  .layout { display:grid; grid-template-columns: 1fr 340px; gap:16px; align-items:start; }
+  @media (max-width:860px){ .layout{grid-template-columns:1fr} }
+  .block { background:#232730; border:1px solid #2a2e37; border-radius:10px; padding:14px; margin-bottom:14px; }
+  .block h3 { font-size:13px; font-weight:500; color:#8b93a3; margin:0 0 10px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row + .row { margin-top:10px; }
+  .input, textarea.input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid #333842; background:#1a1d24; color:inherit; font:inherit; }
+  textarea.input { resize:vertical; }
+  .input:focus { outline:none; border-color:#3b82f6; }
+  .btn { padding:8px 16px; border-radius:8px; border:none; cursor:pointer; font-size:13px; background:#333a4a; color:#e2e8f0; }
+  .btn.primary { background:#3b82f6; color:#fff; font-weight:500; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .hint { font-size:12px; color:#8b93a3; margin-top:8px; }
+  .verdict { border-radius:8px; padding:10px 12px; margin-top:10px; font-size:12.5px; }
+  .verdict.pass { background:#12271c; border:1px solid #1e4030; color:#6ee7a0; }
+  .verdict.fail { background:#2d1518; border:1px solid #5c2328; color:#f87171; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:10px; }
+  th { text-align:left; padding:6px 8px; color:#8b93a3; font-weight:500; border-bottom:1px solid #2a2e37; }
+  td { padding:7px 8px; border-bottom:1px solid #262a33; vertical-align:top; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; }
+  .tag.ok { background:#12271c; color:#6ee7a0; }
+  .tag.bad { background:#2d1518; color:#f87171; }
+  .tag.dim { background:#242938; color:#8b93a3; }
+  .log { background:#0a0c10; border:1px solid #1d2027; border-radius:10px; padding:12px; font:11.5px/1.6 ui-monospace,Consolas,monospace; color:#8b949e; min-height:420px; }
+  .log .ln { white-space:pre-wrap; }
+  .log .ok { color:#3fb950; } .log .warn { color:#d29922; } .log .err { color:#f85149; } .log .dim { color:#6e7681; }
+  .pkgrow b { font-size:12.5px; }
+  .pkgrow .r { color:#f87171; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="tabs">
+    <button class="tab">能力</button><button class="tab">市场</button><button class="tab">导入</button><button class="tab">技能</button><button class="tab on">检测</button><button class="tab">设置</button>
+  </div>
+
+  <div class="layout">
+    <div>
+      <!-- 装前预检 -->
+      <div class="block">
+        <h3>装前预检</h3>
+        <div class="row">
+          <input class="input" placeholder="要安装的 npm 插件名，如 dshmarket" value="dshmarket">
+          <button class="btn primary">预检</button>
+        </div>
+        <div class="verdict pass">✅ dshmarket@1.70.2 不会向 profile 写入 @deepseek-ai/* 宿主内部包。</div>
+        <table>
+          <tr><th>npm 元数据字段</th><th>检查结果</th><th>含义</th></tr>
+          <tr><td>dependencies</td><td><span class="tag ok">无宿主内部包</span></td><td>真实安装进 profile 的依赖——出现 @deepseek-ai/* 即红灯</td></tr>
+          <tr><td>optionalDependencies</td><td><span class="tag ok">无宿主内部包</span></td><td>同上，即使可选也会落盘</td></tr>
+          <tr><td>peerDependencies</td><td><span class="tag dim">cordis · schemastery · dsh-settings</span></td><td>声明由宿主提供，正常，不触发下载</td></tr>
+        </table>
+        <p class="hint">拉取 npm 元数据：插件若在 dependencies / optionalDependencies 声明 @deepseek-ai/* 宿主内部包则红灯（拉进 profile 顶掉内置实现 → 启动崩溃）。</p>
+      </div>
+
+      <!-- 装后体检 -->
+      <div class="block">
+        <h3>装后体检</h3>
+        <div class="row">
+          <button class="btn">体检当前 profile</button>
+          <span style="font-size:12px;color:#8b93a3">上次：3 个问题包</span>
+        </div>
+        <div class="pkgrow" style="margin-top:10px">
+          <b>🔴 3 个问题包</b>
+          <div class="r">@deepseek-ai/dsh-atomic-write@0.1.7-rc.2　· 宿主内置 0.2.1-rc.2，profile 是 0.1.7-rc.2（顶包风险）</div>
+          <div class="r">@deepseek-ai/dsh-credentials@0.0.1-rc.1　· 依赖完整但落后内置两代</div>
+          <div class="r">@deepseek-ai/dsh-launch-environment@0.0.1-rc.3　· 同上</div>
+        </div>
+        <p class="hint">扫描当前 profile 的 node_modules/@deepseek-ai，与宿主内置版本对照并验证依赖可解析。GitHub / 本地路径安装的插件无元数据，装后跑这里。</p>
+      </div>
+
+      <!-- 任务委派 -->
+      <div class="block">
+        <h3>任务委派</h3>
+        <div class="row">
+          <textarea class="input" rows="3" placeholder="发现的问题转交 DSH 深度分析，如：分析这 3 个旧版本包的升级安全性并给出处置建议"></textarea>
+          <button class="btn" style="align-self:flex-start">派发</button>
+        </div>
+        <p class="hint">通过 dsh headless 把任务交给一个独立 DSH 会话执行（node24 + web profile + 凭据自动就位），产出以文件落盘工作区。</p>
+      </div>
+    </div>
+
+    <!-- 右侧执行日志 -->
+    <div class="log" aria-label="执行日志">
+      <div class="ln dim">$ plugin_check</div>
+      <div class="ln ok">✓ node 24.21.0（runtime 自动选择）</div>
+      <div class="ln ok">✓ profile: desktop（当前运行实例）</div>
+      <div class="ln ok">✓ MAGPIE_GATEWAY_KEY ← ~/.dsh/.credentials.yaml</div>
+      <div class="ln dim">── 装前预检 ──</div>
+      <div class="ln ok">✓ dshmarket@1.70.2 无宿主内部包写入</div>
+      <div class="ln warn">❗ 若 dependencies 出现 @deepseek-ai/* → 红灯拒绝</div>
+      <div class="ln dim">── 装后体检 ──</div>
+      <div class="ln ok">✓ app.asar 解析：304 个宿主包版本</div>
+      <div class="ln warn">❗ 3 个旧版本包 → 可转任务委派深度分析</div>
+      <div class="ln dim">── 任务委派 ──</div>
+      <div class="ln ok">✓ 会话创建 · 报告写入默认工作区</div>
+      <div class="ln dim">（每次操作实时追加）</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
