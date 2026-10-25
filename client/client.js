@@ -1043,6 +1043,126 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
     );
   }
 
+  // ── plugin check tab ─────────────────────────────────────────────────────
+
+  /**
+   * 插件检测：装前预检 / 装后体检 / 任务委派，同一引擎三个入口中最直观的一个。
+   * 与设置页那行共用后端路由，这里给完整结果表和委派表单。
+   */
+  function CheckPanel() {
+    const [pkgName, setPkgName] = useState("");
+    const [probeBusy, setProbeBusy] = useState(false);
+    const [probe, setProbe] = useState(null);
+    const [auditBusy, setAuditBusy] = useState(false);
+    const [audit, setAudit] = useState(null);
+    const [task, setTask] = useState("");
+    const [taskBusy, setTaskBusy] = useState(false);
+    const [taskResult, setTaskResult] = useState(null);
+
+    const runProbe = async () => {
+      const name = pkgName.trim();
+      if (name === "") return;
+      setProbeBusy(true);
+      setProbe(null);
+      try {
+        setProbe(await postJson(API + "/plugin-probe", { package: name }));
+      } catch (err) {
+        setProbe({ status: "unknown", summary: errText(err), packages: [] });
+      } finally {
+        setProbeBusy(false);
+      }
+    };
+
+    const runAudit = async () => {
+      setAuditBusy(true);
+      setAudit(null);
+      try {
+        setAudit(await postJson(API + "/plugin-audit"));
+      } catch (err) {
+        setAudit({ status: "fail", summary: errText(err), packages: [] });
+      } finally {
+        setAuditBusy(false);
+      }
+    };
+
+    const delegateTask = async () => {
+      const text = task.trim();
+      if (text === "") return;
+      setTaskBusy(true);
+      setTaskResult(null);
+      try {
+        setTaskResult(await postJson(API + "/plugin-delegate", { task: text }));
+      } catch (err) {
+        setTaskResult({ ok: false, error: errText(err) });
+      } finally {
+        setTaskBusy(false);
+      }
+    };
+
+    const verdictClass = (status) => status === "pass" ? "tsm-notice--success" : status === "fail" ? "tsm-notice--error" : "";
+
+    return h("div", { className: "tsm-body" },
+      // 装前预检
+      h("div", { className: "tsm-setting tsm-setting--block" },
+        h("div", { className: "tsm-setting__row" },
+          h("span", { className: "tsm-setting__label" }, "装前预检"),
+          h("input", {
+            className: "tsm-input tsm-input--wide",
+            placeholder: "要安装的 npm 插件名，如 dshmarket",
+            value: pkgName,
+            disabled: probeBusy,
+            onChange: (e) => setPkgName(e.target.value),
+            onKeyDown: (e) => { if (e.key === "Enter") runProbe(); },
+          }),
+          h("button", { type: "button", className: "tsm-btn tsm-btn--primary", disabled: probeBusy || pkgName.trim() === "", onClick: runProbe }, probeBusy ? "预检中…" : "预检"),
+        ),
+        probe !== null
+          ? h(Notice, { kind: probe.status === "pass" ? "success" : probe.status === "fail" ? "error" : undefined },
+              (probe.status === "fail" ? "🔴 " : probe.status === "pass" ? "✅ " : "⚠️ ") + (probe.summary ?? ""))
+          : h("p", { className: "tsm-hint" }, "拉取 npm 元数据：插件若在 dependencies / optionalDependencies 声明 @deepseek-ai/* 宿主内部包则红灯（拉进 profile 顶掉内置实现 → 启动崩溃）。"),
+        probe !== null && (probe.peerNotes || []).length > 0
+          ? h("p", { className: "tsm-hint" }, "peerDependencies 声明（宿主提供，正常）：" + probe.peerNotes.join("、"))
+          : null,
+      ),
+      // 装后体检
+      h("div", { className: "tsm-setting tsm-setting--block" },
+        h("div", { className: "tsm-setting__row" },
+          h("span", { className: "tsm-setting__label" }, "装后体检"),
+          h("button", { type: "button", className: "tsm-btn", disabled: auditBusy, onClick: runAudit }, auditBusy ? "体检中…" : "体检当前 profile"),
+        ),
+        audit !== null
+          ? h("div", { className: "tsm-hint" },
+              h("div", null, (audit.status === "pass" ? "✅ " : "🔴 ") + (audit.summary ?? "")),
+              (audit.packages || []).map((p) =>
+                h("div", { key: p.package, style: { marginTop: "6px" } },
+                  h("b", null, p.package + (p.version ? "@" + p.version : "")),
+                  (p.reasons || []).map((r) => h("div", { key: r }, "　· " + r)),
+                ),
+              ),
+            )
+          : h("p", { className: "tsm-hint" }, "扫描当前 profile 的 node_modules/@deepseek-ai，与宿主内置版本对照并验证依赖可解析。GitHub / 本地路径安装的插件装前无元数据，装后跑这里。"),
+      ),
+      // 任务委派
+      h("div", { className: "tsm-setting tsm-setting--block" },
+        h("div", { className: "tsm-setting__row" },
+          h("span", { className: "tsm-setting__label" }, "任务委派"),
+          h("textarea", {
+            className: "tsm-input tsm-input--wide",
+            rows: 2,
+            placeholder: "发现的问题转交 DSH 深度分析，如：分析这 3 个旧版本包的升级安全性并给处置建议",
+            value: task,
+            disabled: taskBusy,
+            onChange: (e) => setTask(e.target.value),
+          }),
+          h("button", { type: "button", className: "tsm-btn", disabled: taskBusy || task.trim() === "", onClick: delegateTask }, taskBusy ? "派发中…" : "派发"),
+        ),
+        taskResult !== null
+          ? h("p", { className: "tsm-hint" }, taskResult.ok === true ? "✓ " + (taskResult.hint ?? "已派发") : "✗ " + (taskResult.error ?? "派发失败"))
+          : h("p", { className: "tsm-hint" }, "通过 dsh headless 把任务交给一个独立 DSH 会话执行（node24 + web profile + 凭据自动就位），产出以文件落盘工作区。"),
+      ),
+    );
+  }
+
   // ── page ─────────────────────────────────────────────────────────────────
 
   function ManagerSection(props) {
@@ -1063,6 +1183,7 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
         h(Tab, { label: "市场", active: tab === "market", onClick: () => setTab("market") }),
         h(Tab, { label: "导入", active: tab === "import", onClick: () => setTab("import") }),
         h(Tab, { label: "技能", active: tab === "skills", onClick: () => setTab("skills") }),
+        h(Tab, { label: "检测", active: tab === "check", onClick: () => setTab("check") }),
         h(Tab, { label: "设置", active: tab === "settings", onClick: () => setTab("settings") }),
       ),
       h("div", { className: "tsm-body" },
@@ -1070,6 +1191,7 @@ window.__ModuleLoader__.load({ id: "dsh-toolsearch-manage", factory: (require) =
         tab === "market" ? h(MarketPanel) : null,
         tab === "import" ? h(ImportPanel) : null,
         tab === "skills" ? h(SkillsPanel) : null,
+        tab === "check" ? h(CheckPanel) : null,
         tab === "settings" ? h(SettingsPanel) : null,
       ),
     );
